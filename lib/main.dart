@@ -55,7 +55,7 @@ class _ScaleToWidth extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    final f = (mq.size.width / _designWidth).clamp(0.8, 1.3);
+    final f = (mq.size.shortestSide / _designWidth).clamp(0.8, 1.3);
     if ((f - 1).abs() < 0.01) return child;
     final size = mq.size / f;
     return SizedBox.expand(

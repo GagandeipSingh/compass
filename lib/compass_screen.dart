@@ -217,8 +217,11 @@ class _CompassScreenState extends State<CompassScreen>
                         ),
                       ),
                     )
-                  : Column(
-                      children: [
+                  : Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 580),
+                        child: Column(
+                          children: [
                         const SizedBox(height: 14),
                         _Header(p, trueNorth: _declination != null),
                         // Equal space above and below: everything between sits
@@ -280,6 +283,8 @@ class _CompassScreenState extends State<CompassScreen>
                         ),
                       ],
                     ),
+                  ),
+                ),
             ),
           ],
         ),
