@@ -272,7 +272,12 @@ class _CompassScreenState extends State<CompassScreen>
                             onCalibrate: _openCalibrate,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: math.max(
+                            MediaQuery.paddingOf(context).bottom + 12,
+                            24,
+                          ),
+                        ),
                       ],
                     ),
             ),
@@ -561,11 +566,14 @@ class _Address extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(
-              child: Text(
-                [if (place.address != null) coords, ?elevation].join('  ·  '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: small,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  [if (place.address != null) coords, ?elevation].join('  ·  '),
+                  maxLines: 1,
+                  style: small,
+                ),
               ),
             ),
             // An approximate grant is a choice the user can undo; say so,

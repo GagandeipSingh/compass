@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -373,36 +374,52 @@ Future<void> showGlassSheet(BuildContext context, Widget child) {
     // outside still closes the sheet.
     barrierColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (context) => SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-        child: GlassSurface(
-          radius: 34,
-          thick: true,
-          padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+    builder: (context) {
+      final screenH = MediaQuery.sizeOf(context).height;
+      return SafeArea(
+        top: false,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 480,
+              maxHeight: math.min(640, screenH - 32),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: GlassSurface(
+                radius: 34,
+                thick: true,
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: child,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 18),
-              child,
-            ],
+            ),
           ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
