@@ -10,6 +10,7 @@ import 'ambient.dart';
 import 'compass_painter.dart';
 import 'glass.dart';
 import 'heading.dart';
+import 'motion.dart';
 import 'place.dart';
 import 'sheets.dart';
 
@@ -180,7 +181,6 @@ class _CompassScreenState extends State<CompassScreen>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
     final p = CompassPalette.of(context);
     final style = p == CompassPalette.dark
         ? SystemUiOverlayStyle.light
@@ -217,76 +217,175 @@ class _CompassScreenState extends State<CompassScreen>
                         ),
                       ),
                     )
-                  : Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 580),
-                        child: Column(
-                          children: [
-                        const SizedBox(height: 14),
-                        _Header(p, trueNorth: _declination != null),
-                        // Equal space above and below: everything between sits
-                        // as one group in the middle of the screen.
-                        const Spacer(),
-                        Semantics(
-                          button: true,
-                          label: _locked == null
-                              ? 'Lock heading'
-                              : 'Clear locked heading',
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _toggleLock,
-                            child: RepaintBoundary(
-                              child: SizedBox.square(
-                                dimension: math.min(
-                                  size.width,
-                                  size.height * 0.42,
-                                ),
-                                child: CustomPaint(
-                                  painter: CompassPainter(_dial, p),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _Readout(_readout, p.foreground),
-                        SizedBox(height: 38, child: Center(child: _caption(p))),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 52,
-                          child: _PlaceLine(
-                            state: _place.value,
-                            palette: p,
-                            onAsk: _askLocation,
-                            onRetry: _place.retry,
-                            onTurnOn: _place.turnOnService,
-                            onPrecise: _place.askPrecise,
-                          ),
-                        ),
-                        const Spacer(),
-                        _Toolbar(
-                          locked: _locked != null,
-                          palette: p,
-                          onLock: _toggleLock,
-                          onInfo: () => showInfoSheet(
-                            context,
-                            p,
-                            trueNorth: _declination != null,
-                            onCalibrate: _openCalibrate,
-                          ),
-                        ),
-                        SizedBox(
-                          height: math.max(
-                            MediaQuery.paddingOf(context).bottom + 12,
-                            24,
-                          ),
-                        ),
-                      ],
+                  : LayoutBuilder(
+                      builder: (context, c) =>
+                          _sideBySide(c) ? _wide(p, c) : _tall(context, p, c),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A landscape tablet, an unfolded foldable on its side or a desktop
+  /// window: a stacked layout there would shrink the dial to a third of the
+  /// height, so the dial and its readings sit side by side.
+  static bool _sideBySide(BoxConstraints c) =>
+      c.maxWidth >= 600 && c.maxWidth > c.maxHeight * 1.15;
+
+  Widget _dialView(CompassPalette p, double dimension) => Semantics(
+    button: true,
+    label: _locked == null ? 'Lock heading' : 'Clear locked heading',
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleLock,
+        child: RepaintBoundary(
+          child: SizedBox.square(
+            dimension: dimension,
+            child: CustomPaint(painter: CompassPainter(_dial, p)),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  /// Everything under the dial: the reading, its one-line caption and the
+  /// location.
+  List<Widget> _readings(CompassPalette p) => [
+    _Readout(_readout, p.foreground),
+    SizedBox(height: 38, child: Center(child: _caption(p))),
+    const SizedBox(height: 12),
+    ConstrainedBox(
+      // Tall enough for the address and its coordinates; a long address
+      // takes a second line rather than being cut short.
+      constraints: const BoxConstraints(minHeight: 52),
+      child: _PlaceLine(
+        state: _place.value,
+        palette: p,
+        onAsk: _askLocation,
+        onRetry: _place.retry,
+        onTurnOn: _place.turnOnService,
+        onPrecise: _place.askPrecise,
+      ),
+    ),
+  ];
+
+  /// The floating controls rise into place on a spring when the screen
+  /// opens.
+  Widget _toolbar(CompassPalette p) => SpringIn(
+    key: const ValueKey('toolbar'),
+    from: const Offset(0, 90),
+    child: _Toolbar(
+      locked: _locked != null,
+      palette: p,
+      onLock: _toggleLock,
+      onInfo: () => showInfoSheet(
+        context,
+        p,
+        trueNorth: _declination != null,
+        onCalibrate: _openCalibrate,
+      ),
+    ),
+  );
+
+  Widget _header(CompassPalette p) => SpringIn(
+    key: const ValueKey('header'),
+    from: const Offset(0, -24),
+    child: _Header(p, trueNorth: _declination != null),
+  );
+
+  /// A phone, or a portrait tablet / unfolded foldable: one centred column.
+  Widget _tall(BuildContext context, CompassPalette p, BoxConstraints c) {
+    final bottom = math.max(MediaQuery.paddingOf(context).bottom + 12, 24.0);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: Column(
+          children: [
+            const SizedBox(height: 14),
+            _header(p),
+            // The dial takes all the height the header, readings and
+            // controls leave, so a tall or square screen gets a big dial
+            // instead of big buttons. On a phone the width is what binds.
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, room) => Center(
+                  child: _dialView(
+                    p,
+                    math.max(
+                      0.0,
+                      math.min(
+                        math.min(c.maxWidth - 40, 580.0),
+                        room.maxHeight - 24,
+                      ),
                     ),
                   ),
                 ),
+              ),
             ),
+            ..._readings(p),
+            const SizedBox(height: 18),
+            _toolbar(p),
+            SizedBox(height: bottom),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Wide: the dial on the left, as large as the height allows; the
+  /// reading, location and controls beside it.
+  Widget _wide(CompassPalette p, BoxConstraints c) {
+    const pad = 32.0;
+    // Two equal halves on one centre line. The dial takes a fair share of
+    // its half (it was 84% of the height and dwarfed everything beside it),
+    // and the readings and controls are drawn at the same proportion to the
+    // dial as on the phone the app was designed on, so neither side looks
+    // oversized next to the other.
+    final dial = math.min(c.maxHeight * 0.70, (c.maxWidth - 3 * pad) * 0.42);
+    // On the phone the dial is ~380 wide beside these controls at 1x.
+    final k = (dial / 380).clamp(1.0, 1.45);
+    const panel = 340.0;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1280),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: pad, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(child: Center(child: _dialView(p, dial))),
+              const SizedBox(width: pad),
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: panel * k,
+                    // Scaled as one piece, so text, glass buttons and gaps
+                    // keep the phone's proportions; shrinks if the window
+                    // is too short for it.
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: panel,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _header(p),
+                            const SizedBox(height: 18),
+                            ..._readings(p),
+                            const SizedBox(height: 28),
+                            _toolbar(p),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -330,11 +429,7 @@ class _CompassScreenState extends State<CompassScreen>
                 builder: (_, note, _) =>
                     Text(note ?? '', style: style.copyWith(color: p.accent)),
               );
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          child: child,
-        );
+        return springSwitcher(context, child);
       },
     );
   }
@@ -468,13 +563,7 @@ class _PlaceLine extends StatelessWidget {
         onPrecise: onPrecise,
       ),
     };
-    return Center(
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOutCubic,
-        child: child,
-      ),
-    );
+    return Center(child: springSwitcher(context, child));
   }
 }
 
@@ -555,8 +644,8 @@ class _Address extends StatelessWidget {
             Flexible(
               child: Text(
                 place.address ?? coords,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: p.foreground,
                   fontSize: 16,
@@ -590,11 +679,14 @@ class _Address extends StatelessWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: onPrecise,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      '  ·  Approximate',
-                      style: small.copyWith(color: p.blue),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '  ·  Approximate',
+                        style: small.copyWith(color: p.blue),
+                      ),
                     ),
                   ),
                 ),
@@ -626,30 +718,41 @@ class _Toolbar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        GlassButton(
-          semanticLabel: locked ? 'Unlock heading' : 'Lock heading',
-          onPressed: onLock,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Row(
-              key: ValueKey(locked),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  locked ? CupertinoIcons.lock_fill : CupertinoIcons.lock_open,
-                  size: 19,
-                  color: locked ? palette.accent : fg,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  locked ? 'Unlock' : 'Lock Heading',
-                  style: TextStyle(
-                    color: fg,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+        // Flexible, and the label shrinks rather than overflowing: a narrow
+        // window with the largest text still fits both buttons.
+        Flexible(
+          child: GlassButton(
+            semanticLabel: locked ? 'Unlock heading' : 'Lock heading',
+            onPressed: onLock,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Row(
+                key: ValueKey(locked),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    locked
+                        ? CupertinoIcons.lock_fill
+                        : CupertinoIcons.lock_open,
+                    size: 19,
+                    color: locked ? palette.accent : fg,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        locked ? 'Unlock' : 'Lock Heading',
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -710,4 +813,20 @@ class _Readout extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Swaps one piece of UI for another by MOVING it (the new one springs up
+/// from small, the old one shrinks away), never by fading: glass inside a
+/// fade has nothing behind it to bend and flashes white.
+Widget springSwitcher(BuildContext context, Widget child) {
+  final still = MediaQuery.disableAnimationsOf(context);
+  return AnimatedSwitcher(
+    duration: Duration(milliseconds: still ? 0 : kSpringMs),
+    reverseDuration: Duration(milliseconds: still ? 0 : 200),
+    switchInCurve: kSpring,
+    switchOutCurve: Curves.easeInCubic,
+    transitionBuilder: (child, anim) =>
+        ScaleTransition(scale: anim, child: child),
+    child: child,
+  );
 }

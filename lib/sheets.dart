@@ -476,10 +476,13 @@ Future<void> showInfoSheet(
     );
     return onTap == null
         ? content
-        : GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: content,
+        : MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: content,
+            ),
           );
   }
 

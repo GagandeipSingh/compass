@@ -61,6 +61,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  # The liquid glass lens (Impeller only; frost elsewhere).
+  shaders:
+    - shaders/lens.frag
   # Inter (SIL OFL, assets/fonts/LICENSE.txt): the open face closest to SF Pro.
   # InterDisplay is its optical size for large text, used by the heading.
   fonts:
