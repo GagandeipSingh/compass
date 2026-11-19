@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'appearance.dart';
 import 'compass_screen.dart';
 import 'glass.dart' show GlassLens;
 
@@ -22,6 +23,7 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   // The liquid glass lens; without it (no Impeller) glass is frost only.
   await GlassLens.load();
+  await loadAppearance();
   runApp(const CompassApp());
 }
 
@@ -30,7 +32,8 @@ class CompassApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Follows the system appearance; the native splash does the same
+    // Follows the system appearance unless the toolbar's appearance button
+    // picked light or dark; the native splash always follows the system
     // (plain white in light mode, plain black in dark).
     ThemeData theme(Brightness b) => ThemeData(
       brightness: b,
@@ -52,28 +55,32 @@ class CompassApp extends StatelessWidget {
         },
       ),
     );
-    return MaterialApp(
-      title: 'Compass',
-      debugShowCheckedModeBanner: false,
-      theme: theme(Brightness.light),
-      darkTheme: theme(Brightness.dark),
-      scrollBehavior: const _StillScroll(),
-      builder: (context, child) {
-        // The phone's font size is honoured up to 1.25x: the app already
-        // scales to the screen, and the buttons have fixed heights that
-        // larger text would overflow. Never smaller than 1x.
-        final mq = MediaQuery.of(context);
-        return MediaQuery(
-          data: mq.copyWith(
-            textScaler: mq.textScaler.clamp(
-              minScaleFactor: 1.0,
-              maxScaleFactor: 1.25,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: appearance,
+      builder: (context, mode, _) => MaterialApp(
+        title: 'Compass',
+        debugShowCheckedModeBanner: false,
+        theme: theme(Brightness.light),
+        darkTheme: theme(Brightness.dark),
+        themeMode: mode,
+        scrollBehavior: const _StillScroll(),
+        builder: (context, child) {
+          // The phone's font size is honoured up to 1.25x: the app already
+          // scales to the screen, and the buttons have fixed heights that
+          // larger text would overflow. Never smaller than 1x.
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(
+              textScaler: mq.textScaler.clamp(
+                minScaleFactor: 1.0,
+                maxScaleFactor: 1.25,
+              ),
             ),
-          ),
-          child: _ScaleToWidth(child: child!),
-        );
-      },
-      home: const CompassScreen(),
+            child: _ScaleToWidth(child: child!),
+          );
+        },
+        home: const CompassScreen(),
+      ),
     );
   }
 }

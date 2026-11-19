@@ -58,9 +58,7 @@ class CompassPalette {
   );
 
   static CompassPalette of(BuildContext context) =>
-      MediaQuery.platformBrightnessOf(context) == Brightness.dark
-      ? dark
-      : light;
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
 /// The compass dial. Ticks, numbers and letters turn with the world; the

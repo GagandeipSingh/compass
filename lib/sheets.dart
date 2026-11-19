@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'appearance.dart';
 import 'compass_painter.dart';
 import 'glass.dart';
 import 'heading.dart';
@@ -414,13 +415,130 @@ class _FigureEight extends CustomPainter {
 // ---------------------------------------------------------------------------
 // Info
 
+/// Light or dark: follow the phone, or always one of them. A three-way
+/// segmented control, each option labelled, so the choice reads at a glance
+/// instead of being guessed from a cycling icon.
+class _AppearancePicker extends StatelessWidget {
+  const _AppearancePicker(this.p);
+
+  final CompassPalette p;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: appearance,
+      builder: (context, mode, _) {
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        // Unchosen options stay readable: grey on the grey track was lost.
+        final dim = p.foreground.withValues(alpha: 0.62);
+        Widget option(ThemeMode m, IconData icon, String label) {
+          final on = m == mode;
+          return Expanded(
+            child: Semantics(
+              button: true,
+              selected: on,
+              label: 'Appearance: $label',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (on) return;
+                    HapticFeedback.selectionClick();
+                    setAppearance(m);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: on
+                          ? (dark
+                                ? Colors.white.withValues(alpha: 0.16)
+                                : Colors.white.withValues(alpha: 0.55))
+                          : Colors.transparent,
+                      boxShadow: on && !dark
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 6,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ]
+                          : null,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: ExcludeSemantics(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Only the sun is orange, because a sun is; the half circle and the moon stay neutral.
+                          Icon(
+                            icon,
+                            size: 16,
+                            color: !on
+                                ? dim
+                                : (m == ThemeMode.light
+                                      ? p.accent
+                                      : p.foreground),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  color: on ? p.foreground : dim,
+                                  fontSize: 14,
+                                  fontWeight: on
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: p.foreground.withValues(alpha: dark ? 0.08 : 0.07),
+            borderRadius: BorderRadius.circular(23),
+          ),
+          child: Row(
+            children: [
+              option(
+                ThemeMode.system,
+                CupertinoIcons.circle_lefthalf_fill,
+                'System',
+              ),
+              option(ThemeMode.light, CupertinoIcons.sun_max, 'Light'),
+              option(ThemeMode.dark, CupertinoIcons.moon, 'Dark'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 Future<void> showInfoSheet(
   BuildContext context,
-  CompassPalette p, {
+  CompassPalette p0, {
   required bool trueNorth,
   required VoidCallback onCalibrate,
 }) {
   Widget row(
+    CompassPalette p,
     IconData icon,
     Color tint,
     String title,
@@ -435,11 +553,19 @@ Future<void> showInfoSheet(
           Container(
             width: 34,
             height: 34,
+            // On the light glass a pale tint washed the badge out, so light
+            // mode draws it solid with a white glyph.
             decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.16),
+              color: identical(p, CompassPalette.dark)
+                  ? tint.withValues(alpha: 0.16)
+                  : tint,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 18, color: tint),
+            child: Icon(
+              icon,
+              size: 18,
+              color: identical(p, CompassPalette.dark) ? tint : Colors.white,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -489,49 +615,68 @@ Future<void> showInfoSheet(
   return showGlassSheet(
     context,
     Builder(
-      builder: (context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Compass', style: _title(p)),
-          const SizedBox(height: 10),
-          row(
-            CupertinoIcons.compass,
-            p.accent,
-            trueNorth ? 'True north' : 'Magnetic north',
-            trueNorth
-                ? 'Corrected for your location, so N points to the geographic '
-                      'North Pole.'
-                : 'N points to magnetic north. Show your location to switch '
-                      'to true north.',
-          ),
-          row(
-            CupertinoIcons.lock_fill,
-            p.foreground,
-            'Lock a heading',
-            'Tap the dial or Lock Heading. The orange arc shows how far you have '
-                'turned from it.',
-          ),
-          row(
-            CupertinoIcons.plus,
-            p.foreground,
-            'Level',
-            'The small cross drifts to the higher side. A ring appears when '
-                'the phone lies flat.',
-          ),
-          row(
-            CupertinoIcons.infinite,
-            p.orange,
-            'Calibrate',
-            'If readings drift or an orange warning appears under the heading, '
-                'recalibrate.',
-            onTap: () {
-              Navigator.of(context).pop();
-              onCalibrate();
-            },
-          ),
-        ],
-      ),
+      builder: (context) {
+        final p = CompassPalette.of(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Compass', style: _title(p)),
+            const SizedBox(height: 10),
+            row(
+              p,
+              CupertinoIcons.compass,
+              p.accent,
+              trueNorth ? 'True north' : 'Magnetic north',
+              trueNorth
+                  ? 'Corrected for your location, so N points to the geographic '
+                        'North Pole.'
+                  : 'N points to magnetic north. Show your location to switch '
+                        'to true north.',
+            ),
+            row(
+              p,
+              CupertinoIcons.lock_fill,
+              p.foreground,
+              'Lock a heading',
+              'Tap the dial or Lock Heading. The orange arc shows how far you have '
+                  'turned from it.',
+            ),
+            row(
+              p,
+              CupertinoIcons.plus,
+              p.foreground,
+              'Level',
+              'The small cross drifts to the higher side. A ring appears when '
+                  'the phone lies flat.',
+            ),
+            row(
+              p,
+              CupertinoIcons.infinite,
+              p.orange,
+              'Calibrate',
+              'If readings drift or an orange warning appears under the heading, '
+                  'recalibrate.',
+              onTap: () {
+                Navigator.of(context).pop();
+                onCalibrate();
+              },
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'APPEARANCE',
+              style: TextStyle(
+                color: p.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _AppearancePicker(p),
+          ],
+        );
+      },
     ),
   );
 }
