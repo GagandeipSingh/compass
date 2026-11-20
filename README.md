@@ -15,6 +15,8 @@ A calm, accurate compass for Android: true north, a heading you can lock, a leve
 
 <img src="store/tablet_10in/01_north.png" width="620">
 
+<img src="store/desktop/01_north.png" width="620">
+
 ## Download
 
 Get the latest APK from [Releases](https://github.com/GagandeipSingh/compass/releases/latest). Most phones use the **arm64-v8a** file. Requires Android 7.0 or newer.
@@ -27,7 +29,7 @@ Get the latest APK from [Releases](https://github.com/GagandeipSingh/compass/rel
 - **Level:** a small cross drifts to the higher side, and a ring appears when the phone lies flat
 - **Calibrate:** a guided figure 8 when readings drift, and it tells you when it is already accurate
 - **Light or dark:** or follow your phone
-- **Any screen:** phones, tablets and foldables
+- **Any screen:** phones, tablets, foldables and desktop mode
 
 ## Build
 
