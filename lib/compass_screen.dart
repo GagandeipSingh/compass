@@ -11,6 +11,7 @@ import 'compass_painter.dart';
 import 'glass.dart';
 import 'heading.dart';
 import 'motion.dart';
+import 'nav_backing.dart';
 import 'place.dart';
 import 'sheets.dart';
 
@@ -189,6 +190,9 @@ class _CompassScreenState extends State<CompassScreen>
       value: style.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
+        // The presets draw white nav buttons (they assume a black bar);
+        // ours is transparent, so follow the status icons.
+        systemNavigationBarIconBrightness: style.statusBarIconBrightness,
       ),
       child: Scaffold(
         backgroundColor: p.background,
@@ -222,6 +226,9 @@ class _CompassScreenState extends State<CompassScreen>
                           _sideBySide(c) ? _wide(p, c) : _tall(context, p, c),
                     ),
             ),
+            // The nav buttons always sit on a frosted strip, as in the
+            // other Blessing apps.
+            const NavButtonBacking(),
           ],
         ),
       ),
